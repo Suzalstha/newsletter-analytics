@@ -13,6 +13,8 @@ const ICON_BY_TYPE: Record<string, string> = {
   EMPLOYEE_ADDED: "+",
 };
 
+const MAX_ITEMS = 5;
+
 export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
   if (items.length === 0) {
     return (
@@ -22,9 +24,13 @@ export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
     );
   }
 
+  // Display-only cap -- the backend already returns items newest-first, so
+  // this just shows the top 5 without touching or re-sorting the data.
+  const recentItems = items.slice(0, MAX_ITEMS);
+
   return (
     <ul className="flex flex-col gap-3">
-      {items.map((item, i) => (
+      {recentItems.map((item, i) => (
         <li key={i} className="flex items-start gap-2.5 text-sm">
           <span
             aria-hidden="true"

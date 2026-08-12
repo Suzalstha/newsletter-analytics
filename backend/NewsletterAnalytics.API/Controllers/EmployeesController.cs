@@ -13,11 +13,13 @@ public class EmployeesController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IAnalyticsService _analyticsService;
+    private readonly IEmployeeImportService _importService;
 
-    public EmployeesController(AppDbContext context, IAnalyticsService analyticsService)
+    public EmployeesController(AppDbContext context, IAnalyticsService analyticsService, IEmployeeImportService importService)
     {
         _context = context;
         _analyticsService = analyticsService;
+        _importService = importService;
     }
 
     [HttpGet]
@@ -177,5 +179,49 @@ public class EmployeesController : ControllerBase
         employee.IsActive = false;
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    // Parses and validates a CSV without writing anything -- lets the UI show a
+    // preview (valid / duplicate / invalid rows) before the admin commits to it.
+    [HttpPost("import/preview")]
+    [RequestSizeLimit(5_000_000)]
+    public async Task<ActionResult<EmployeeImportSummaryDto>> PreviewImport(IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { message = "No file was uploaded." });
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            return Ok(await _importService.PreviewAsync(stream));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // Re-validates the same CSV and actually creates the valid rows (finding-or-creating
+    // their Group first). Duplicate/invalid rows are skipped, never partially applied.
+    [HttpPost("import/confirm")]
+    [RequestSizeLimit(5_000_000)]
+    public async Task<ActionResult<EmployeeImportSummaryDto>> ConfirmImport(IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { message = "No file was uploaded." });
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            return Ok(await _importService.ImportAsync(stream));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

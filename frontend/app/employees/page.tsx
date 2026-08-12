@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import BulkImportPanel from "@/components/BulkImportPanel";
 
 type Employee = {
   id: number;
@@ -25,7 +26,9 @@ export default function EmployeesPage() {
   const [groupId, setGroupId] = useState("");
   const [department, setDepartment] = useState("");
   const [form, setForm] = useState<FormState | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
+  const [removingHasActivity, setRemovingHasActivity] = useState<boolean | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +60,18 @@ export default function EmployeesPage() {
     new Set((employees ?? []).map((e) => e.department).filter((d): d is string => !!d))
   );
 
+  async function startRemove(id: number) {
+    setRemoveError(null);
+    setRemovingId(id);
+    setRemovingHasActivity(null); // null = still checking
+    try {
+      const analytics = await apiFetch<{ newslettersReceived: number }>(`/api/employees/${id}/analytics`);
+      setRemovingHasActivity(analytics.newslettersReceived > 0);
+    } catch {
+      setRemovingHasActivity(false);
+    }
+  }
+
   async function handleRemove(id: number) {
     setRemoveError(null);
     try {
@@ -70,17 +85,37 @@ export default function EmployeesPage() {
 
   return (
     <main className="max-w-4xl mx-auto p-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-1">
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
           Employees
         </h1>
-        <button
-          onClick={() => setForm((f) => (f?.mode === "create" ? null : { mode: "create" }))}
-          className="btn-primary"
-        >
-          + Add Employee
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setShowBulkImport(false);
+              setForm((f) => (f?.mode === "create" ? null : { mode: "create" }));
+            }}
+            className="btn-primary"
+          >
+            + Add Employee
+          </button>
+          <button
+            onClick={() => {
+              setForm(null);
+              setShowBulkImport((v) => !v);
+            }}
+            className="btn-secondary"
+          >
+            Bulk Import
+          </button>
+        </div>
       </div>
+
+      <p className="text-sm mb-6">
+        <Link href="/groups" style={{ color: "var(--accent)" }}>
+          Groups →
+        </Link>
+      </p>
 
       {form && (
         <EmployeeForm
@@ -92,6 +127,17 @@ export default function EmployeesPage() {
             load();
           }}
           onCancel={() => setForm(null)}
+        />
+      )}
+
+      {showBulkImport && (
+        <BulkImportPanel
+          onDone={() => {
+            setShowBulkImport(false);
+            load();
+            apiFetch<Group[]>("/api/groups").then(setGroups).catch(() => {});
+          }}
+          onCancel={() => setShowBulkImport(false)}
         />
       )}
 
@@ -165,16 +211,25 @@ export default function EmployeesPage() {
                   <td className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>{e.groups.join(", ") || "—"}</td>
                   <td className="py-3 px-4">
                     {removingId === e.id ? (
-                      <div className="flex items-center gap-2 justify-end whitespace-nowrap">
+                      <div className="flex flex-col items-end gap-1 whitespace-nowrap">
                         <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
                           Remove {e.name}?
                         </span>
-                        <button onClick={() => handleRemove(e.id)} className="text-xs text-danger font-medium">
-                          Confirm
-                        </button>
-                        <button onClick={() => setRemovingId(null)} className="text-xs" style={{ color: "var(--text-muted)" }}>
-                          Cancel
-                        </button>
+                        {removingHasActivity === null ? (
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Checking activity…</span>
+                        ) : removingHasActivity ? (
+                          <span className="text-xs" style={{ color: "var(--status-warning)" }}>
+                            Has existing newsletter activity — history will be kept.
+                          </span>
+                        ) : null}
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleRemove(e.id)} className="text-xs text-danger font-medium">
+                            Confirm
+                          </button>
+                          <button onClick={() => setRemovingId(null)} className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 justify-end">
@@ -185,13 +240,7 @@ export default function EmployeesPage() {
                         >
                           Edit
                         </button>
-                        <button
-                          onClick={() => {
-                            setRemoveError(null);
-                            setRemovingId(e.id);
-                          }}
-                          className="text-xs text-danger"
-                        >
+                        <button onClick={() => startRemove(e.id)} className="text-xs text-danger">
                           Remove
                         </button>
                       </div>

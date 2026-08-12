@@ -17,6 +17,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IPdfImportService, PdfImportService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IDistributionService, DistributionService>();
+builder.Services.AddScoped<IEmployeeImportService, EmployeeImportService>();
 
 builder.Services.AddCors(options =>
 {

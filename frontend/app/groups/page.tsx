@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import DeleteGroupConfirm from "@/components/DeleteGroupConfirm";
 
 type Group = { id: number; name: string; employeeCount: number };
 
@@ -11,6 +12,10 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -41,12 +46,27 @@ export default function GroupsPage() {
     }
   }
 
-  async function handleDelete(id: number) {
+  function startEdit(g: Group) {
+    setDeletingId(null);
+    setError(null);
+    setEditingId(g.id);
+    setEditValue(g.name);
+  }
+
+  async function handleRename(id: number) {
+    if (!editValue.trim()) return;
+    setRenaming(true);
+    setError(null);
     try {
-      await apiFetch(`/api/groups/${id}`, { method: "DELETE" });
+      // Updates the existing group in place (same id) -- never creates a new
+      // group, so every employee already linked to it stays linked.
+      await apiFetch(`/api/groups/${id}`, { method: "PUT", body: JSON.stringify({ name: editValue }) });
+      setEditingId(null);
       await load();
-    } catch {
-      setError("Unable to delete group.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to rename group.");
+    } finally {
+      setRenaming(false);
     }
   }
 
@@ -77,23 +97,71 @@ export default function GroupsPage() {
         <EmptyState title="No groups yet" description="Create a group to organize employees for newsletter distribution." />
       ) : (
         <div className="flex flex-col gap-2">
-          {groups.map((g) => (
-            <div
-              key={g.id}
-              className="flex items-center justify-between border rounded-lg p-4"
-              style={{ borderColor: "var(--gridline)", backgroundColor: "var(--chart-surface)" }}
-            >
-              <div>
-                <Link href={`/groups/${g.id}`} className="font-semibold hover:underline" style={{ color: "var(--text-primary)" }}>
-                  {g.name}
-                </Link>
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{g.employeeCount} employees</p>
+          {groups.map((g) =>
+            deletingId === g.id ? (
+              <DeleteGroupConfirm
+                key={g.id}
+                group={g}
+                groups={groups}
+                onDeleted={() => {
+                  setDeletingId(null);
+                  load();
+                }}
+                onCancel={() => setDeletingId(null)}
+              />
+            ) : editingId === g.id ? (
+              <div
+                key={g.id}
+                className="flex items-center gap-3 border rounded-lg p-4"
+                style={{ borderColor: "var(--gridline)", backgroundColor: "var(--chart-surface)" }}
+              >
+                <input
+                  autoFocus
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleRename(g.id)}
+                  className="border rounded px-3 py-2 text-sm flex-1"
+                  style={{ borderColor: "var(--gridline)", color: "var(--text-primary)" }}
+                />
+                <button
+                  onClick={() => handleRename(g.id)}
+                  disabled={renaming || !editValue.trim()}
+                  className="btn-primary"
+                >
+                  {renaming ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => setEditingId(null)}
+                  disabled={renaming}
+                  className="text-sm"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Cancel
+                </button>
               </div>
-              <button onClick={() => handleDelete(g.id)} className="text-sm text-danger">
-                Delete
-              </button>
-            </div>
-          ))}
+            ) : (
+              <div
+                key={g.id}
+                className="flex items-center justify-between border rounded-lg p-4"
+                style={{ borderColor: "var(--gridline)", backgroundColor: "var(--chart-surface)" }}
+              >
+                <div>
+                  <Link href={`/groups/${g.id}`} className="font-semibold hover:underline" style={{ color: "var(--text-primary)" }}>
+                    {g.name}
+                  </Link>
+                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{g.employeeCount} employees</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => startEdit(g)} className="text-sm" style={{ color: "var(--accent)" }}>
+                    Edit
+                  </button>
+                  <button onClick={() => { setEditingId(null); setDeletingId(g.id); }} className="text-sm text-danger">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )
+          )}
         </div>
       )}
     </main>
