@@ -69,7 +69,7 @@ public class AppDbContext : DbContext
         // Employee <-> Group is many-to-many with nothing extra to store on the relationship,
         // so EF Core generates the join table automatically -- no explicit join entity needed.
         modelBuilder.Entity<CompanySettings>().HasData(
-            new CompanySettings { Id = 1, CompanyName = "Himalayan Everest Insurance", LogoUrl = null }
+            new CompanySettings { Id = 1, CompanyName = "Himalayan Everest Insurance" }
         );
     }
 }

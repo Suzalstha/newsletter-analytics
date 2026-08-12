@@ -73,10 +73,10 @@ export default function UploadNewsletterPage() {
             {result.slideCount} slide{result.slideCount === 1 ? "" : "s"} created from &ldquo;{result.title}&rdquo;
           </p>
           <div className="flex gap-3 justify-center">
-            <Link href={`/newsletters/${result.id}`} className="px-4 py-2 border rounded text-sm" style={{ borderColor: "var(--gridline)" }}>
+            <Link href={`/newsletters/${result.id}`} className="btn-secondary">
               View Newsletter
             </Link>
-            <Link href={`/analytics/${result.id}`} className="px-4 py-2 bg-black text-white rounded text-sm">
+            <Link href={`/analytics/${result.id}`} className="btn-primary">
               View Analytics
             </Link>
           </div>
@@ -106,8 +106,8 @@ export default function UploadNewsletterPage() {
         onClick={() => inputRef.current?.click()}
         className="border-2 border-dashed rounded-lg p-10 text-center cursor-pointer mb-4"
         style={{
-          borderColor: dragging ? "var(--series-1)" : "var(--gridline)",
-          backgroundColor: "var(--chart-surface)",
+          borderColor: dragging ? "var(--accent)" : "var(--gridline)",
+          backgroundColor: dragging ? "var(--accent-soft)" : "var(--chart-surface)",
         }}
       >
         <p style={{ color: "var(--text-primary)" }}>Drop PDF here</p>
@@ -146,14 +146,10 @@ export default function UploadNewsletterPage() {
       </div>
 
       {status === "error" && (
-        <p className="text-red-500 text-sm mb-4">{errorMessage}</p>
+        <p className="text-danger text-sm mb-4">{errorMessage}</p>
       )}
 
-      <button
-        onClick={handleUpload}
-        disabled={!file || status === "uploading"}
-        className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
-      >
+      <button onClick={handleUpload} disabled={!file || status === "uploading"} className="btn-primary">
         {status === "uploading" ? "Processing…" : "Upload Newsletter"}
       </button>
     </main>

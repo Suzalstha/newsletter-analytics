@@ -91,12 +91,12 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           className="text-2xl font-bold border-b bg-transparent"
           style={{ color: "var(--text-primary)", borderColor: "var(--gridline)" }}
         />
-        <button onClick={handleDelete} className="text-sm text-red-500 ml-auto">
+        <button onClick={handleDelete} className="text-sm text-danger ml-auto">
           Delete group
         </button>
       </div>
 
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {error && <p className="text-danger text-sm mb-4">{error}</p>}
 
       <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
         {memberIds.length} of {allEmployees.length} employees selected
@@ -116,11 +116,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
         ))}
       </div>
 
-      <button
-        onClick={handleSaveMembers}
-        disabled={saving}
-        className="px-4 py-2 bg-black text-white rounded text-sm disabled:opacity-50"
-      >
+      <button onClick={handleSaveMembers} disabled={saving} className="btn-primary">
         {saving ? "Saving…" : "Save Members"}
       </button>
     </main>

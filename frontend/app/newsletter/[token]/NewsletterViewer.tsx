@@ -42,7 +42,11 @@ export default function NewsletterViewer({
   }, [recipient]);
 
   if (slides.length === 0) {
-    return <main className="max-w-2xl mx-auto p-8">This newsletter has no slides yet.</main>;
+    return (
+      <main className="max-w-2xl mx-auto p-8" style={{ color: "var(--text-primary)" }}>
+        This newsletter has no slides yet.
+      </main>
+    );
   }
 
   const currentSlide = slides[currentIndex];
@@ -86,16 +90,18 @@ export default function NewsletterViewer({
   if (completed) {
     return (
       <main className="max-w-2xl mx-auto p-8 text-center">
-        <h1 className="text-2xl font-bold mb-2">Thank you, {recipient.employeeName.split(" ")[0]}!</h1>
-        <p className="text-gray-500">You have completed the newsletter.</p>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
+          Thank you, {recipient.employeeName.split(" ")[0]}!
+        </h1>
+        <p style={{ color: "var(--text-secondary)" }}>You have completed the newsletter.</p>
       </main>
     );
   }
 
   return (
     <main className="max-w-2xl mx-auto p-8">
-      <p className="text-sm text-gray-500 mb-1">{recipient.newsletterTitle}</p>
-      <p className="text-sm text-gray-400 mb-6">
+      <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>{recipient.newsletterTitle}</p>
+      <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
         Slide {currentIndex + 1} / {slides.length}
       </p>
 
@@ -104,31 +110,31 @@ export default function NewsletterViewer({
         <img
           src={`${process.env.NEXT_PUBLIC_API_URL}${currentSlide.imageUrl}`}
           alt={currentSlide.title}
-          className="w-full h-auto rounded mb-8 border"
+          className="w-full h-auto rounded-lg mb-8 border"
           style={{ borderColor: "var(--gridline)" }}
         />
       ) : (
         <>
-          <h2 className="text-xl font-bold mb-4">{currentSlide.title}</h2>
-          <p className="mb-8 whitespace-pre-line">{currentSlide.content}</p>
+          <h2 className="text-xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>
+            {currentSlide.title}
+          </h2>
+          <p className="mb-8 whitespace-pre-line" style={{ color: "var(--text-primary)" }}>
+            {currentSlide.content}
+          </p>
         </>
       )}
 
       <div className="flex justify-between">
-        <button
-          onClick={handlePrevious}
-          disabled={currentIndex === 0}
-          className="px-4 py-2 border rounded disabled:opacity-30"
-        >
+        <button onClick={handlePrevious} disabled={currentIndex === 0} className="btn-secondary disabled:opacity-30">
           Previous
         </button>
 
         {isLastSlide ? (
-          <button onClick={handleFinish} className="px-4 py-2 bg-black text-white rounded">
+          <button onClick={handleFinish} className="btn-primary">
             Finish
           </button>
         ) : (
-          <button onClick={handleNext} className="px-4 py-2 bg-black text-white rounded">
+          <button onClick={handleNext} className="btn-primary">
             Next
           </button>
         )}

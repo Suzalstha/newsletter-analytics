@@ -9,8 +9,8 @@ export default function EmptyState({
 }) {
   return (
     <div
-      className="rounded-lg border border-dashed p-10 text-center"
-      style={{ borderColor: "var(--gridline)" }}
+      className="rounded-xl border border-dashed p-10 text-center"
+      style={{ borderColor: "var(--border-strong)", backgroundColor: "var(--surface-page)" }}
     >
       <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
         {title}

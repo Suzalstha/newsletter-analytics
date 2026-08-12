@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type Settings = { companyName: string; logoUrl: string | null };
+type Settings = { companyName: string };
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -52,20 +52,15 @@ export default function SettingsPage() {
               style={{ borderColor: "var(--gridline)" }}
             />
           </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Logo URL (optional)</span>
-            <input
-              value={settings.logoUrl ?? ""}
-              onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value || null })}
-              className="border rounded px-3 py-2 text-sm"
-              style={{ borderColor: "var(--gridline)" }}
-            />
-          </label>
           <div className="flex items-center gap-3">
-            <button type="submit" disabled={saving} className="self-start px-4 py-2 bg-black text-white rounded text-sm disabled:opacity-50">
+            <button type="submit" disabled={saving} className="self-start btn-primary">
               {saving ? "Saving…" : "Save"}
             </button>
-            {saved && <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Saved</span>}
+            {saved && (
+              <span className="text-sm" style={{ color: "var(--status-good)" }}>
+                ✓ Saved
+              </span>
+            )}
           </div>
         </form>
       </section>

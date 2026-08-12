@@ -64,12 +64,12 @@ export default function GroupsPage() {
           className="border rounded px-3 py-2 text-sm flex-1"
           style={{ borderColor: "var(--gridline)" }}
         />
-        <button type="submit" disabled={creating} className="px-4 py-2 bg-black text-white rounded text-sm disabled:opacity-50">
+        <button type="submit" disabled={creating} className="btn-primary">
           {creating ? "Creating…" : "Create Group"}
         </button>
       </form>
 
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {error && <p className="text-danger text-sm mb-4">{error}</p>}
 
       {groups === null ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading…</p>
@@ -89,10 +89,7 @@ export default function GroupsPage() {
                 </Link>
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{g.employeeCount} employees</p>
               </div>
-              <button
-                onClick={() => handleDelete(g.id)}
-                className="text-sm text-red-500"
-              >
+              <button onClick={() => handleDelete(g.id)} className="text-sm text-danger">
                 Delete
               </button>
             </div>

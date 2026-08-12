@@ -77,13 +77,13 @@ export default function DistributeForm({ newsletterId, groups }: { newsletterId:
         </div>
       )}
 
-      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+      {error && <p className="text-danger text-sm mb-2">{error}</p>}
       {message && <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>{message}</p>}
 
       <button
         onClick={handleSend}
         disabled={sending || (!allEmployees && selectedGroupIds.length === 0)}
-        className="px-4 py-2 bg-black text-white rounded text-sm disabled:opacity-50"
+        className="btn-primary"
       >
         {sending ? "Sending…" : "Generate Tracking Links"}
       </button>

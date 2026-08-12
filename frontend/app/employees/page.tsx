@@ -16,13 +16,17 @@ type Employee = {
 
 type Group = { id: number; name: string };
 
+type FormState = { mode: "create" } | { mode: "edit"; employee: Employee };
+
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[] | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [search, setSearch] = useState("");
   const [groupId, setGroupId] = useState("");
   const [department, setDepartment] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [form, setForm] = useState<FormState | null>(null);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -53,6 +57,17 @@ export default function EmployeesPage() {
     new Set((employees ?? []).map((e) => e.department).filter((d): d is string => !!d))
   );
 
+  async function handleRemove(id: number) {
+    setRemoveError(null);
+    try {
+      await apiFetch(`/api/employees/${id}`, { method: "DELETE" });
+      setRemovingId(null);
+      await load();
+    } catch (err) {
+      setRemoveError(err instanceof ApiError ? err.message : "Unable to remove employee.");
+    }
+  }
+
   return (
     <main className="max-w-4xl mx-auto p-8">
       <div className="flex items-center justify-between mb-6">
@@ -60,20 +75,23 @@ export default function EmployeesPage() {
           Employees
         </h1>
         <button
-          onClick={() => setShowAddForm((v) => !v)}
-          className="px-4 py-2 bg-black text-white rounded text-sm"
+          onClick={() => setForm((f) => (f?.mode === "create" ? null : { mode: "create" }))}
+          className="btn-primary"
         >
           + Add Employee
         </button>
       </div>
 
-      {showAddForm && (
-        <AddEmployeeForm
+      {form && (
+        <EmployeeForm
+          key={form.mode === "edit" ? form.employee.id : "create"}
+          form={form}
           groups={groups}
           onDone={() => {
-            setShowAddForm(false);
+            setForm(null);
             load();
           }}
+          onCancel={() => setForm(null)}
         />
       )}
 
@@ -109,7 +127,8 @@ export default function EmployeesPage() {
         </select>
       </div>
 
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {error && <p className="text-danger text-sm mb-4">{error}</p>}
+      {removeError && <p className="text-danger text-sm mb-4">{removeError}</p>}
 
       {employees === null ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading…</p>
@@ -119,40 +138,94 @@ export default function EmployeesPage() {
           description="Add your first employee to start distributing newsletters."
         />
       ) : (
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="text-left border-b" style={{ borderColor: "var(--gridline)" }}>
-              <th className="py-2 pr-4" style={{ color: "var(--text-secondary)" }}>Name</th>
-              <th className="py-2 pr-4" style={{ color: "var(--text-secondary)" }}>Email</th>
-              <th className="py-2 pr-4" style={{ color: "var(--text-secondary)" }}>Department</th>
-              <th className="py-2 pr-4" style={{ color: "var(--text-secondary)" }}>Groups</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map((e) => (
-              <tr key={e.id} className="border-b" style={{ borderColor: "var(--gridline)" }}>
-                <td className="py-2 pr-4">
-                  <Link href={`/employees/${e.id}`} className="hover:underline" style={{ color: "var(--text-primary)" }}>
-                    {e.name}
-                  </Link>
-                </td>
-                <td className="py-2 pr-4" style={{ color: "var(--text-secondary)" }}>{e.email}</td>
-                <td className="py-2 pr-4" style={{ color: "var(--text-secondary)" }}>{e.department ?? "—"}</td>
-                <td className="py-2 pr-4" style={{ color: "var(--text-secondary)" }}>{e.groups.join(", ") || "—"}</td>
+        <div
+          className="rounded-xl border overflow-x-auto"
+          style={{ borderColor: "var(--border-default)", backgroundColor: "var(--surface-card)", boxShadow: "var(--shadow-sm)" }}
+        >
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="text-left border-b" style={{ borderColor: "var(--gridline)" }}>
+                <th className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>Name</th>
+                <th className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>Email</th>
+                <th className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>Department</th>
+                <th className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>Groups</th>
+                <th className="py-3 px-4"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {employees.map((e) => (
+                <tr key={e.id} className="border-b last:border-b-0" style={{ borderColor: "var(--gridline)" }}>
+                  <td className="py-3 px-4">
+                    <Link href={`/employees/${e.id}`} className="hover:underline" style={{ color: "var(--text-primary)" }}>
+                      {e.name}
+                    </Link>
+                  </td>
+                  <td className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>{e.email}</td>
+                  <td className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>{e.department ?? "—"}</td>
+                  <td className="py-3 px-4" style={{ color: "var(--text-secondary)" }}>{e.groups.join(", ") || "—"}</td>
+                  <td className="py-3 px-4">
+                    {removingId === e.id ? (
+                      <div className="flex items-center gap-2 justify-end whitespace-nowrap">
+                        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                          Remove {e.name}?
+                        </span>
+                        <button onClick={() => handleRemove(e.id)} className="text-xs text-danger font-medium">
+                          Confirm
+                        </button>
+                        <button onClick={() => setRemovingId(null)} className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 justify-end">
+                        <button
+                          onClick={() => setForm({ mode: "edit", employee: e })}
+                          className="text-xs"
+                          style={{ color: "var(--accent)" }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRemoveError(null);
+                            setRemovingId(e.id);
+                          }}
+                          className="text-xs text-danger"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   );
 }
 
-function AddEmployeeForm({ groups, onDone }: { groups: Group[]; onDone: () => void }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [department, setDepartment] = useState("");
-  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
+function EmployeeForm({
+  form,
+  groups,
+  onDone,
+  onCancel,
+}: {
+  form: FormState;
+  groups: Group[];
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const editing = form.mode === "edit" ? form.employee : null;
+
+  const [name, setName] = useState(editing?.name ?? "");
+  const [email, setEmail] = useState(editing?.email ?? "");
+  const [department, setDepartment] = useState(editing?.department ?? "");
+  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>(
+    editing ? groups.filter((g) => editing.groups.includes(g.name)).map((g) => g.id) : []
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -165,13 +238,26 @@ function AddEmployeeForm({ groups, onDone }: { groups: Group[]; onDone: () => vo
     setSaving(true);
     setError(null);
     try {
-      await apiFetch("/api/employees", {
-        method: "POST",
-        body: JSON.stringify({ name, email, department: department || null, groupIds: selectedGroupIds }),
-      });
+      if (editing) {
+        await apiFetch(`/api/employees/${editing.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            name,
+            email,
+            department: department || null,
+            isActive: editing.isActive,
+            groupIds: selectedGroupIds,
+          }),
+        });
+      } else {
+        await apiFetch("/api/employees", {
+          method: "POST",
+          body: JSON.stringify({ name, email, department: department || null, groupIds: selectedGroupIds }),
+        });
+      }
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to add employee.");
+      setError(err instanceof ApiError ? err.message : `Unable to ${editing ? "save changes" : "add employee"}.`);
       setSaving(false);
     }
   }
@@ -202,11 +288,16 @@ function AddEmployeeForm({ groups, onDone }: { groups: Group[]; onDone: () => vo
         </div>
       )}
 
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {error && <p className="text-danger text-sm">{error}</p>}
 
-      <button type="submit" disabled={saving} className="self-start px-4 py-2 bg-black text-white rounded text-sm disabled:opacity-50">
-        {saving ? "Adding…" : "Add Employee"}
-      </button>
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={saving} className="self-start btn-primary">
+          {saving ? (editing ? "Saving…" : "Adding…") : editing ? "Save Changes" : "Add Employee"}
+        </button>
+        <button type="button" onClick={onCancel} className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

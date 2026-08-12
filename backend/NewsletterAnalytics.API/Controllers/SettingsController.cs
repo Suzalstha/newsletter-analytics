@@ -20,7 +20,7 @@ public class SettingsController : ControllerBase
     public async Task<ActionResult<CompanySettingsDto>> Get()
     {
         var settings = await _context.CompanySettings.FirstAsync(s => s.Id == 1);
-        return Ok(new CompanySettingsDto { CompanyName = settings.CompanyName, LogoUrl = settings.LogoUrl });
+        return Ok(new CompanySettingsDto { CompanyName = settings.CompanyName });
     }
 
     [HttpPut]
@@ -28,7 +28,6 @@ public class SettingsController : ControllerBase
     {
         var settings = await _context.CompanySettings.FirstAsync(s => s.Id == 1);
         settings.CompanyName = dto.CompanyName;
-        settings.LogoUrl = dto.LogoUrl;
         await _context.SaveChangesAsync();
         return NoContent();
     }

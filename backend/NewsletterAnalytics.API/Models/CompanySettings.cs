@@ -5,5 +5,4 @@ public class CompanySettings
 {
     public int Id { get; set; }
     public required string CompanyName { get; set; }
-    public string? LogoUrl { get; set; }
 }

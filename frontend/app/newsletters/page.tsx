@@ -27,7 +27,7 @@ export default async function NewslettersPage() {
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
           Newsletters
         </h1>
-        <Link href="/newsletters/upload" className="px-4 py-2 bg-black text-white rounded text-sm">
+        <Link href="/newsletters/upload" className="btn-primary">
           + Upload Newsletter
         </Link>
       </div>
@@ -37,7 +37,7 @@ export default async function NewslettersPage() {
           title="No newsletters yet"
           description="Upload your first finished PDF to get started."
           action={
-            <Link href="/newsletters/upload" className="text-sm underline" style={{ color: "var(--text-primary)" }}>
+            <Link href="/newsletters/upload" className="text-sm underline" style={{ color: "var(--accent)" }}>
               Upload a newsletter
             </Link>
           }
