@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<Employee> Employees { get; set; } = null!;
     public DbSet<Group> Groups { get; set; } = null!;
     public DbSet<CompanySettings> CompanySettings { get; set; } = null!;
+    public DbSet<EmployeeImportBatch> EmployeeImportBatches { get; set; } = null!;
 
     // SQL Server has no concept of "this DateTime is UTC" -- it stores a plain timestamp
     // and EF Core reads it back as DateTimeKind.Unspecified. Without this, the JSON we send
@@ -68,8 +69,23 @@ public class AppDbContext : DbContext
 
         // Employee <-> Group is many-to-many with nothing extra to store on the relationship,
         // so EF Core generates the join table automatically -- no explicit join entity needed.
+
+        // Newsletter.Status is stored as its string name (e.g. "Draft"), not the numeric
+        // enum value -- readable in the database and stable if the enum's declaration
+        // order ever changes.
+        modelBuilder.Entity<Newsletter>()
+            .Property(n => n.Status)
+            .HasConversion<string>();
+
+        // Newsletter <-> Group ("who a Scheduled newsletter is currently set to go to")
+        // is a second many-to-many, independent of Employee <-> Group, following the same
+        // auto-generated-join-table pattern.
+        modelBuilder.Entity<Newsletter>()
+            .HasMany(n => n.ScheduledGroups)
+            .WithMany();
+
         modelBuilder.Entity<CompanySettings>().HasData(
-            new CompanySettings { Id = 1, CompanyName = "Himalayan Everest Insurance" }
+            new CompanySettings { Id = 1, CompanyName = "Himalayan Everest Insurance", TimeZoneId = "Asia/Kathmandu" }
         );
     }
 }

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
-import { formatDate, formatDuration } from "@/lib/format";
+import { formatDate, formatDuration, formatInTimeZone } from "@/lib/format";
 import StatTile from "@/components/StatTile";
+import StatusBadge from "@/components/StatusBadge";
+import CompleteNewsletterButton from "@/components/CompleteNewsletterButton";
 import SlideEngagementChart, { type SlideEngagement } from "@/components/SlideEngagementChart";
 import DistributeForm from "./DistributeForm";
 
@@ -14,7 +16,12 @@ type NewsletterDetail = {
   recipientCount: number;
   openRate: number;
   completionRate: number;
+  scheduledAt: string | null;
+  scheduledAllEmployees: boolean;
+  scheduledGroupNames: string[];
 };
+
+type Settings = { companyName: string; timeZoneId: string };
 
 type AnalyticsSummary = {
   totalOpened: number;
@@ -43,11 +50,12 @@ export default async function NewsletterDetailPage(props: PageProps<"/newsletter
     throw err;
   }
 
-  const [summary, slides, recipients, groups] = await Promise.all([
+  const [summary, slides, recipients, groups, settings] = await Promise.all([
     apiFetch<AnalyticsSummary>(`/api/analytics/${id}`),
     apiFetch<SlideEngagement[]>(`/api/analytics/${id}/slides`),
     apiFetch<RecipientAnalytics[]>(`/api/analytics/${id}/recipients`),
     apiFetch<Group[]>("/api/groups"),
+    apiFetch<Settings>("/api/settings"),
   ]);
 
   return (
@@ -60,10 +68,20 @@ export default async function NewsletterDetailPage(props: PageProps<"/newsletter
           Full analytics →
         </Link>
       </div>
-      <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-        {newsletter.status}
-        {newsletter.publishedAt ? ` · Published ${formatDate(newsletter.publishedAt)}` : ""}
-      </p>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <StatusBadge status={newsletter.status} />
+        {newsletter.status === "Scheduled" && newsletter.scheduledAt && (
+          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Scheduled for {formatInTimeZone(newsletter.scheduledAt, settings.timeZoneId)}
+          </span>
+        )}
+        {newsletter.status === "Sent" && newsletter.publishedAt && (
+          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Sent {formatDate(newsletter.publishedAt)}
+          </span>
+        )}
+        {newsletter.status === "Sent" && <CompleteNewsletterButton newsletterId={newsletter.id} />}
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <StatTile label="Recipients" value={newsletter.recipientCount.toString()} />
@@ -73,7 +91,15 @@ export default async function NewsletterDetailPage(props: PageProps<"/newsletter
       </div>
 
       <div className="mb-8">
-        <DistributeForm newsletterId={newsletter.id} groups={groups} />
+        <DistributeForm
+          newsletterId={newsletter.id}
+          groups={groups}
+          status={newsletter.status}
+          scheduledAt={newsletter.scheduledAt}
+          scheduledAllEmployees={newsletter.scheduledAllEmployees}
+          scheduledGroupNames={newsletter.scheduledGroupNames}
+          timeZoneId={settings.timeZoneId}
+        />
       </div>
 
       <h2 className="text-lg font-semibold mb-3" style={{ color: "var(--text-primary)" }}>

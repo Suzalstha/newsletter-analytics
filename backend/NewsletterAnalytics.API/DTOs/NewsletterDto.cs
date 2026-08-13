@@ -13,4 +13,10 @@ public class NewsletterDto
     public int RecipientCount { get; set; }
     public double OpenRate { get; set; }
     public double CompletionRate { get; set; }
+
+    // Only meaningful while Status == "Scheduled" (kept afterwards as a record of what
+    // was scheduled).
+    public DateTime? ScheduledAt { get; set; }
+    public bool ScheduledAllEmployees { get; set; }
+    public List<string> ScheduledGroupNames { get; set; } = new();
 }

@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 
-type Settings = { companyName: string };
+type Settings = { companyName: string; timeZoneId: string };
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<Settings>("/api/settings").then(setSettings).catch(() => {});
@@ -20,9 +21,12 @@ export default function SettingsPage() {
     if (!settings) return;
     setSaving(true);
     setSaved(false);
+    setError(null);
     try {
       await apiFetch("/api/settings", { method: "PUT", body: JSON.stringify(settings) });
       setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to save settings.");
     } finally {
       setSaving(false);
     }
@@ -52,6 +56,22 @@ export default function SettingsPage() {
               style={{ borderColor: "var(--gridline)" }}
             />
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              Company timezone
+            </span>
+            <input
+              value={settings.timeZoneId}
+              onChange={(e) => setSettings({ ...settings, timeZoneId: e.target.value })}
+              placeholder="e.g. Asia/Kathmandu"
+              className="border rounded px-3 py-2 text-sm"
+              style={{ borderColor: "var(--gridline)" }}
+            />
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              An IANA timezone id. Used to interpret the date/time you enter when scheduling a newsletter.
+            </span>
+          </label>
+          {error && <p className="text-danger text-sm">{error}</p>}
           <div className="flex items-center gap-3">
             <button type="submit" disabled={saving} className="self-start btn-primary">
               {saving ? "Saving…" : "Save"}

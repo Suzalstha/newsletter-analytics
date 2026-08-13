@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { apiUrl } from "@/lib/api";
-import { downloadEmployeeCsvTemplate } from "@/lib/csvTemplate";
+import { downloadEmployeeCsvTemplate, downloadEmployeeImportErrors } from "@/lib/csvTemplate";
 
 type ImportRow = {
   rowNumber: number;
@@ -12,6 +13,7 @@ type ImportRow = {
   group: string | null;
   status: "Valid" | "Duplicate" | "Invalid";
   reason: string | null;
+  duplicateType: "InFile" | "InDatabase" | null;
 };
 
 type ImportSummary = {
@@ -38,6 +40,24 @@ async function postCsv(path: string, file: File): Promise<ImportSummary> {
 
 function isCsvFile(f: File) {
   return f.name.toLowerCase().endsWith(".csv");
+}
+
+function ProblemRow({ row }: { row: ImportRow }) {
+  return (
+    <div className="px-3 py-2 text-sm">
+      <p style={{ color: "var(--text-primary)" }}>
+        <span className="font-semibold">Row {row.rowNumber}</span>
+        <span style={{ color: "var(--text-muted)" }}>
+          {" · "}
+          {row.name || "—"} · {row.email || "—"} · {row.department || "—"} · {row.group || "—"}
+        </span>
+      </p>
+      <p className="mt-0.5" style={{ color: row.status === "Invalid" ? "var(--status-critical)" : "var(--status-warning)" }}>
+        <span className="font-medium">Reason: </span>
+        {row.reason}
+      </p>
+    </div>
+  );
 }
 
 export default function BulkImportPanel({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
@@ -99,7 +119,11 @@ export default function BulkImportPanel({ onDone, onCancel }: { onDone: () => vo
     inputRef.current?.click();
   }
 
-  const problemRows = summary?.rows.filter((r) => r.status !== "Valid") ?? [];
+  const invalidRows = summary?.rows.filter((r) => r.status === "Invalid") ?? [];
+  const duplicateRows = summary?.rows.filter((r) => r.status === "Duplicate") ?? [];
+  const inDbDuplicates = duplicateRows.filter((r) => r.duplicateType === "InDatabase");
+  const inFileDuplicates = duplicateRows.filter((r) => r.duplicateType === "InFile");
+  const hasProblems = invalidRows.length + duplicateRows.length > 0;
   const locked = stage === "importing";
 
   return (
@@ -111,14 +135,19 @@ export default function BulkImportPanel({ onDone, onCancel }: { onDone: () => vo
         <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
           Bulk Import Employees
         </p>
-        <button
-          type="button"
-          onClick={downloadEmployeeCsvTemplate}
-          className="text-sm underline"
-          style={{ color: "var(--accent)" }}
-        >
-          Download CSV Template
-        </button>
+        <div className="flex items-center gap-4">
+          <Link href="/employees/import-history" className="text-sm underline" style={{ color: "var(--accent)" }}>
+            View Import History →
+          </Link>
+          <button
+            type="button"
+            onClick={downloadEmployeeCsvTemplate}
+            className="text-sm underline"
+            style={{ color: "var(--accent)" }}
+          >
+            Download CSV Template
+          </button>
+        </div>
       </div>
 
       <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -221,33 +250,64 @@ export default function BulkImportPanel({ onDone, onCancel }: { onDone: () => vo
       {error && <p className="text-danger text-sm">{error}</p>}
 
       {(stage === "preview" || stage === "importing") && summary && (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-4 text-sm">
-            <span style={{ color: "var(--status-good)" }}>✓ {summary.validCount} valid</span>
-            {summary.duplicateCount > 0 && (
-              <span style={{ color: "var(--status-warning)" }}>⚠ {summary.duplicateCount} duplicate{summary.duplicateCount === 1 ? "" : "s"}</span>
-            )}
-            {summary.invalidCount > 0 && (
-              <span className="text-danger">✕ {summary.invalidCount} invalid</span>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span style={{ color: "var(--status-good)" }}>✓ {summary.validCount} valid</span>
+              {summary.duplicateCount > 0 && (
+                <span style={{ color: "var(--status-warning)" }}>⚠ {summary.duplicateCount} duplicate{summary.duplicateCount === 1 ? "" : "s"}</span>
+              )}
+              {summary.invalidCount > 0 && (
+                <span className="text-danger">✕ {summary.invalidCount} invalid</span>
+              )}
+            </div>
+            {hasProblems && (
+              <button
+                type="button"
+                onClick={() =>
+                  downloadEmployeeImportErrors(
+                    summary.rows.filter((r) => r.status !== "Valid").map((r) => ({
+                      rowNumber: r.rowNumber,
+                      name: r.name,
+                      email: r.email,
+                      department: r.department,
+                      group: r.group,
+                      reason: r.reason,
+                    }))
+                  )
+                }
+                className="text-xs underline"
+                style={{ color: "var(--accent)" }}
+              >
+                Download Error CSV
+              </button>
             )}
           </div>
 
-          {problemRows.length > 0 && (
-            <div
-              className="rounded border max-h-64 overflow-y-auto divide-y"
-              style={{ borderColor: "var(--gridline)" }}
-            >
-              {problemRows.map((row) => (
-                <div key={row.rowNumber} className="px-3 py-2 text-sm" style={{ borderColor: "var(--gridline)" }}>
-                  <p style={{ color: "var(--text-primary)" }}>
-                    Row {row.rowNumber}
-                    <span style={{ color: "var(--text-muted)" }}> · {row.email || row.name || "(unreadable row)"}</span>
-                  </p>
-                  <p style={{ color: row.status === "Invalid" ? "var(--status-critical)" : "var(--status-warning)" }}>
-                    {row.reason}
-                  </p>
-                </div>
-              ))}
+          {duplicateRows.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold mb-1.5" style={{ color: "var(--status-warning)" }}>
+                Duplicates
+              </p>
+              <div
+                className="rounded border max-h-56 overflow-y-auto divide-y"
+                style={{ borderColor: "var(--gridline)" }}
+              >
+                {inDbDuplicates.map((row) => <ProblemRow key={row.rowNumber} row={row} />)}
+                {inFileDuplicates.map((row) => <ProblemRow key={row.rowNumber} row={row} />)}
+              </div>
+            </div>
+          )}
+
+          {invalidRows.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold mb-1.5 text-danger">Invalid</p>
+              <div
+                className="rounded border max-h-56 overflow-y-auto divide-y"
+                style={{ borderColor: "var(--gridline)" }}
+              >
+                {invalidRows.map((row) => <ProblemRow key={row.rowNumber} row={row} />)}
+              </div>
             </div>
           )}
 
@@ -269,12 +329,40 @@ export default function BulkImportPanel({ onDone, onCancel }: { onDone: () => vo
 
       {stage === "done" && summary && (
         <div className="flex flex-col gap-3">
-          <p className="text-sm" style={{ color: "var(--status-good)" }}>
-            ✓ Imported {summary.importedCount} employee{summary.importedCount === 1 ? "" : "s"}.
-          </p>
-          <button type="button" onClick={onDone} className="self-start btn-primary">
-            Done
-          </button>
+          <div
+            className="rounded-lg border p-4"
+            style={{ borderColor: "var(--status-good)", backgroundColor: "var(--status-good-bg)" }}
+          >
+            <p className="font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+              Import Complete
+            </p>
+            <div className="flex flex-col gap-1 text-sm">
+              <span style={{ color: "var(--status-good)" }}>
+                ✓ {summary.importedCount} employee{summary.importedCount === 1 ? "" : "s"} imported
+              </span>
+              {summary.duplicateCount > 0 && (
+                <span style={{ color: "var(--status-warning)" }}>
+                  ⚠ {summary.duplicateCount} duplicate row{summary.duplicateCount === 1 ? "" : "s"} skipped
+                </span>
+              )}
+              {summary.invalidCount > 0 && (
+                <span className="text-danger">
+                  ✕ {summary.invalidCount} invalid row{summary.invalidCount === 1 ? "" : "s"} skipped
+                </span>
+              )}
+              <span className="mt-1" style={{ color: "var(--text-secondary)" }}>
+                Total processed: {summary.totalRows}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={onDone} className="self-start btn-primary">
+              Done
+            </button>
+            <Link href="/employees/import-history" className="text-sm underline" style={{ color: "var(--accent)" }}>
+              View Import History →
+            </Link>
+          </div>
         </div>
       )}
 

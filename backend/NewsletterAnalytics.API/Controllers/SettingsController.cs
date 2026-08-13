@@ -20,14 +20,24 @@ public class SettingsController : ControllerBase
     public async Task<ActionResult<CompanySettingsDto>> Get()
     {
         var settings = await _context.CompanySettings.FirstAsync(s => s.Id == 1);
-        return Ok(new CompanySettingsDto { CompanyName = settings.CompanyName });
+        return Ok(new CompanySettingsDto { CompanyName = settings.CompanyName, TimeZoneId = settings.TimeZoneId });
     }
 
     [HttpPut]
     public async Task<IActionResult> Update(CompanySettingsDto dto)
     {
+        try
+        {
+            TimeZoneInfo.FindSystemTimeZoneById(dto.TimeZoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return BadRequest(new { message = $"Unknown timezone id \"{dto.TimeZoneId}\"." });
+        }
+
         var settings = await _context.CompanySettings.FirstAsync(s => s.Id == 1);
         settings.CompanyName = dto.CompanyName;
+        settings.TimeZoneId = dto.TimeZoneId;
         await _context.SaveChangesAsync();
         return NoContent();
     }

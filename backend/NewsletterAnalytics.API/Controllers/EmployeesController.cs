@@ -217,11 +217,18 @@ public class EmployeesController : ControllerBase
         try
         {
             await using var stream = file.OpenReadStream();
-            return Ok(await _importService.ImportAsync(stream));
+            return Ok(await _importService.ImportAsync(stream, file.FileName));
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    // Past confirmed import attempts, newest first.
+    [HttpGet("import/history")]
+    public async Task<ActionResult<IEnumerable<EmployeeImportHistoryDto>>> ImportHistory()
+    {
+        return Ok(await _importService.GetHistoryAsync());
     }
 }

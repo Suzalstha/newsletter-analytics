@@ -11,6 +11,11 @@ public class EmployeeImportRowDto
     // "Valid" | "Duplicate" | "Invalid"
     public required string Status { get; set; }
     public string? Reason { get; set; }
+
+    // Only set when Status == "Duplicate": "InFile" (repeated within this CSV) or
+    // "InDatabase" (email already belongs to an existing employee). Lets the UI group
+    // the two duplicate kinds without parsing the Reason text.
+    public string? DuplicateType { get; set; }
 }
 
 public class EmployeeImportSummaryDto
@@ -24,4 +29,17 @@ public class EmployeeImportSummaryDto
     public int ImportedCount { get; set; }
 
     public List<EmployeeImportRowDto> Rows { get; set; } = new();
+}
+
+public class EmployeeImportHistoryDto
+{
+    public int Id { get; set; }
+    public required string FileName { get; set; }
+    public DateTime ImportedAt { get; set; }
+    public int TotalRows { get; set; }
+    public int ImportedCount { get; set; }
+    public int DuplicateCount { get; set; }
+    public int InvalidCount { get; set; }
+    public required string Status { get; set; }
+    public string? ErrorMessage { get; set; }
 }

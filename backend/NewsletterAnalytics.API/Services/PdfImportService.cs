@@ -27,7 +27,7 @@ public class PdfImportService : IPdfImportService
             Title = title,
             Description = description,
             CreatedBy = createdBy,
-            Status = "Draft",
+            Status = NewsletterStatus.Draft,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -70,11 +70,10 @@ public class PdfImportService : IPdfImportService
 
         _context.NewsletterSlides.AddRange(slides);
 
-        // No manual review step in this product -- a successfully processed PDF is
-        // immediately ready to send and track.
-        newsletter.Status = "Published";
-        newsletter.PublishedAt = DateTime.UtcNow;
-
+        // A successfully processed PDF is immediately ready to send, but stays a Draft
+        // until the admin actually sends or schedules it -- PublishedAt is now set when
+        // that happens (see NewslettersController and ScheduledNewsletterDispatcher),
+        // not at upload time.
         await _context.SaveChangesAsync();
 
         newsletter.Slides = slides;

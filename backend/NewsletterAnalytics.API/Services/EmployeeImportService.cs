@@ -24,11 +24,31 @@ public class EmployeeImportService : IEmployeeImportService
         return Summarize(rows, importedCount: 0);
     }
 
-    public async Task<EmployeeImportSummaryDto> ImportAsync(Stream csvStream)
+    public async Task<EmployeeImportSummaryDto> ImportAsync(Stream csvStream, string fileName)
     {
-        // Re-validate against current data rather than trusting whatever the client
-        // saw during preview -- another admin may have imported/added something since.
-        var rows = await ParseAndValidateAsync(csvStream);
+        List<EmployeeImportRowDto> rows;
+        try
+        {
+            // Re-validate against current data rather than trusting whatever the client
+            // saw during preview -- another admin may have imported/added something since.
+            rows = await ParseAndValidateAsync(csvStream);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _context.EmployeeImportBatches.Add(new EmployeeImportBatch
+            {
+                FileName = fileName,
+                ImportedAt = DateTime.UtcNow,
+                TotalRows = 0,
+                ImportedCount = 0,
+                DuplicateCount = 0,
+                InvalidCount = 0,
+                Status = "Failed",
+                ErrorMessage = ex.Message
+            });
+            await _context.SaveChangesAsync();
+            throw;
+        }
 
         var groupCache = new Dictionary<string, Group>(StringComparer.OrdinalIgnoreCase);
         foreach (var group in await _context.Groups.ToListAsync())
@@ -61,11 +81,43 @@ public class EmployeeImportService : IEmployeeImportService
             imported++;
         }
 
-        // One SaveChanges call -- every new Group and Employee added above commits
-        // together, or none of them do if something fails.
+        var summary = Summarize(rows, imported);
+
+        _context.EmployeeImportBatches.Add(new EmployeeImportBatch
+        {
+            FileName = fileName,
+            ImportedAt = DateTime.UtcNow,
+            TotalRows = summary.TotalRows,
+            ImportedCount = summary.ImportedCount,
+            DuplicateCount = summary.DuplicateCount,
+            InvalidCount = summary.InvalidCount,
+            Status = "Completed"
+        });
+
+        // One SaveChanges call -- every new Group, Employee, and the history record
+        // added above commit together, or none of them do if something fails.
         await _context.SaveChangesAsync();
 
-        return Summarize(rows, imported);
+        return summary;
+    }
+
+    public async Task<List<EmployeeImportHistoryDto>> GetHistoryAsync()
+    {
+        return await _context.EmployeeImportBatches
+            .OrderByDescending(b => b.ImportedAt)
+            .Select(b => new EmployeeImportHistoryDto
+            {
+                Id = b.Id,
+                FileName = b.FileName,
+                ImportedAt = b.ImportedAt,
+                TotalRows = b.TotalRows,
+                ImportedCount = b.ImportedCount,
+                DuplicateCount = b.DuplicateCount,
+                InvalidCount = b.InvalidCount,
+                Status = b.Status,
+                ErrorMessage = b.ErrorMessage
+            })
+            .ToListAsync();
     }
 
     private async Task<List<EmployeeImportRowDto>> ParseAndValidateAsync(Stream csvStream)
@@ -171,7 +223,8 @@ public class EmployeeImportService : IEmployeeImportService
         if (seenInFile.TryGetValue(email, out var firstRow))
         {
             row.Status = "Duplicate";
-            row.Reason = $"Duplicate row in CSV (already listed on row {firstRow})";
+            row.DuplicateType = "InFile";
+            row.Reason = $"Duplicate email appears twice in this CSV (already listed on row {firstRow}).";
             return row;
         }
 
@@ -209,7 +262,8 @@ public class EmployeeImportService : IEmployeeImportService
             if (row.Status == "Valid" && existingSet.Contains(row.Email!.ToLowerInvariant()))
             {
                 row.Status = "Duplicate";
-                row.Reason = "An employee with this email already exists";
+                row.DuplicateType = "InDatabase";
+                row.Reason = "Email already exists in the employee database.";
             }
         }
     }

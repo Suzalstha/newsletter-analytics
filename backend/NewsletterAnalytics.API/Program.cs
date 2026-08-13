@@ -19,6 +19,11 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IDistributionService, DistributionService>();
 builder.Services.AddScoped<IEmployeeImportService, EmployeeImportService>();
 
+// No real email provider is configured yet -- see NullEmailService for why that's
+// deliberate. Swap this registration for a real implementation when one exists.
+builder.Services.AddScoped<IEmailService, NullEmailService>();
+builder.Services.AddHostedService<ScheduledNewsletterDispatcher>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
